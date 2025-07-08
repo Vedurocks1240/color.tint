@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Tint Photo Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-file-upload {
+            border: 2px solid #4a5568;
+            display: inline-block;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 0.375rem;
+            background-color: #2d3748;
+            color: white;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .custom-file-upload:hover {
+            background-color: #4a5568;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        /* Custom slider styles */
+        input[type=range] {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          cursor: pointer;
+          outline: none;
+          border-radius: 15px;
+          height: 10px;
+          background: #4a5568;
+        }
+        input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 24px;
+          width: 24px;
+          background-color: #cbd5e1;
+          border-radius: 50%;
+          border: 2px solid #94a3b8;
+          transition: background-color 0.2s;
+        }
+        input[type=range]::-moz-range-thumb {
+          height: 24px;
+          width: 24px;
+          background-color: #cbd5e1;
+          border-radius: 50%;
+          border: 2px solid #94a3b8;
+          transition: background-color 0.2s;
+        }
+        /* Custom color input */
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 48px;
+            height: 48px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border-radius: 50%;
+            border: 2px solid #64748b;
+        }
+        input[type="color"]::-moz-color-swatch {
+            border-radius: 50%;
+            border: 2px solid #64748b;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl bg-gray-800 rounded-xl shadow-2xl p-6 md:p-8 space-y-6">
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-cyan-300">Color Tint Photo Tool</h1>
+            <p class="text-gray-400 mt-2">Upload a photo and give it any color tint!</p>
+        </div>
+
+        <!-- Canvas for Image Display -->
+        <div class="bg-gray-900 p-2 rounded-lg flex items-center justify-center aspect-square">
+            <canvas id="imageCanvas" class="max-w-full max-h-full rounded-md"></canvas>
+            <p id="uploadPrompt" class="text-gray-500">Please upload an image to begin.</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="space-y-6">
+            <!-- File Upload and Main Actions -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <label for="imageLoader" class="custom-file-upload text-center w-full sm:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="inline-block mr-2" viewBox="0 0 16 16">
+                      <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                      <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                    </svg>
+                    Upload Image
+                </label>
+                <input type="file" id="imageLoader" name="imageLoader" accept="image/png, image/jpeg"/>
+                <button id="resetButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Reset</button>
+                <a id="downloadLink" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto text-center transition-colors disabled-link" href="#">Download</a>
+            </div>
+
+            <!-- Color and Intensity Controls -->
+            <div id="controlsContainer" class="space-y-4 hidden">
+                <div class="flex items-center gap-4 bg-gray-700/50 p-4 rounded-lg">
+                    <div class="flex-shrink-0">
+                        <label for="colorPicker" class="font-medium text-gray-300 block mb-1 text-center">Color</label>
+                        <input type="color" id="colorPicker" value="#fef08a">
+                    </div>
+                    <div class="flex-grow space-y-2">
+                        <label for="intensitySlider" class="font-medium text-gray-300">Intensity: <span id="intensityValue">50</span>%</label>
+                        <input type="range" id="intensitySlider" min="0" max="100" value="50" class="w-full">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const imageLoader = document.getElementById('imageLoader');
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const colorPicker = document.getElementById('colorPicker');
+        const intensitySlider = document.getElementById('intensitySlider');
+        const intensityValue = document.getElementById('intensityValue');
+        const controlsContainer = document.getElementById('controlsContainer');
+        const resetButton = document.getElementById('resetButton');
+        const downloadLink = document.getElementById('downloadLink');
+
+        // --- State Variables ---
+        let originalImageData = null;
+        let currentImage = new Image();
+        
+        // --- Initial State Setup ---
+        downloadLink.classList.add('opacity-50', 'pointer-events-none');
+
+
+        // --- Event Listeners ---
+        imageLoader.addEventListener('change', handleImageUpload, false);
+        colorPicker.addEventListener('input', handleControlsChange);
+        intensitySlider.addEventListener('input', handleControlsChange);
+        resetButton.addEventListener('click', resetImageAndFilter);
+        downloadLink.addEventListener('click', downloadImage);
+
+
+        // --- Functions ---
+
+        /**
+         * Handles the file input change event. Loads the selected image.
+         * @param {Event} e - The change event object.
+         */
+        function handleImageUpload(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                currentImage = new Image();
+                currentImage.onload = function() {
+                    drawImageToCanvas(currentImage);
+                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    applyColorFilter(); // Apply initial filter
+                    
+                    // Update UI
+                    uploadPrompt.style.display = 'none';
+                    canvas.style.display = 'block';
+                    controlsContainer.classList.remove('hidden');
+                    resetButton.disabled = false;
+                    downloadLink.classList.remove('opacity-50', 'pointer-events-none');
+                }
+                currentImage.src = event.target.result;
+            }
+            if (e.target.files[0]) {
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        }
+
+        /**
+         * Draws the provided image onto the canvas, scaling it to fit.
+         * @param {HTMLImageElement} img - The image to draw.
+         */
+        function drawImageToCanvas(img) {
+            const container = canvas.parentElement;
+            const maxWidth = container.clientWidth;
+            const maxHeight = container.clientHeight;
+            
+            let ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+            canvas.width = img.width * ratio;
+            canvas.height = img.height * ratio;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+
+        /**
+         * Converts a hex color string to an RGB object.
+         * @param {string} hex - The hex color string (e.g., "#ff0000").
+         * @returns {{r: number, g: number, b: number}|null} An object with r, g, b properties or null if invalid.
+         */
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        /**
+         * Applies the selected color filter based on the controls' current values.
+         */
+        function applyColorFilter() {
+            if (!originalImageData) return;
+
+            const newImageData = new ImageData(
+                new Uint8ClampedArray(originalImageData.data),
+                originalImageData.width,
+                originalImageData.height
+            );
+            
+            const data = newImageData.data;
+            const intensity = intensitySlider.value / 100;
+            const tintColor = hexToRgb(colorPicker.value);
+
+            if (!tintColor) return; // Exit if hex is invalid
+
+            for (let i = 0; i < data.length; i += 4) {
+                // Blend the original pixel with the selected tint color
+                data[i] = data[i] * (1 - intensity) + tintColor.r * intensity;
+                data[i + 1] = data[i + 1] * (1 - intensity) + tintColor.g * intensity;
+                data[i + 2] = data[i + 2] * (1 - intensity) + tintColor.b * intensity;
+            }
+
+            ctx.putImageData(newImageData, 0, 0);
+        }
+        
+        const debouncedApplyFilter = debounce(applyColorFilter, 25);
+        
+        /**
+         * Debounces a function to prevent it from being called too frequently.
+         */
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+
+        /**
+         * Handles changes from the color picker or intensity slider.
+         */
+        function handleControlsChange() {
+            if (!originalImageData) return;
+            intensityValue.textContent = intensitySlider.value;
+            debouncedApplyFilter();
+        }
+
+        /**
+         * Resets the image to its original state and resets filter controls.
+         */
+        function resetImageAndFilter() {
+            if (!originalImageData) return;
+            ctx.putImageData(originalImageData, 0, 0);
+            intensitySlider.value = 50;
+            intensityValue.textContent = '50';
+            colorPicker.value = '#fef08a'; // Reset to default yellow
+        }
+
+        /**
+         * Downloads the current canvas content as a PNG image.
+         */
+        function downloadImage(e) {
+            if (!originalImageData) {
+                e.preventDefault();
+                return;
+            };
+            const dataUrl = canvas.toDataURL('image/png');
+            downloadLink.href = dataUrl;
+            downloadLink.download = 'color-tint-photo.png';
+        }
+
+    </script>
+</body>
+</html>
