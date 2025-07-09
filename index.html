@@ -3,112 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Color Tint Photo Tool</title>
+    <title>AI Color Tint Photo Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+        body { font-family: 'Inter', sans-serif; }
         .custom-file-upload {
-            border: 2px solid #4a5568;
-            display: inline-block;
-            padding: 8px 12px;
-            cursor: pointer;
-            border-radius: 0.375rem;
-            background-color: #2d3748;
-            color: white;
-            font-weight: 500;
-            transition: background-color 0.2s;
+            border: 2px solid #4a5568; display: inline-block; padding: 8px 12px;
+            cursor: pointer; border-radius: 0.375rem; background-color: #2d3748;
+            color: white; font-weight: 500; transition: background-color 0.2s;
         }
-        .custom-file-upload:hover {
-            background-color: #4a5568;
-        }
-        input[type="file"] {
-            display: none;
-        }
-        /* Custom slider styles */
+        .custom-file-upload:hover { background-color: #4a5568; }
+        input[type="file"] { display: none; }
         input[type=range] {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 100%;
-          cursor: pointer;
-          outline: none;
-          border-radius: 15px;
-          height: 10px;
-          background: #4a5568;
+            -webkit-appearance: none; appearance: none; width: 100%; cursor: pointer;
+            border-radius: 15px; height: 10px; background: #4a5568;
         }
-        input[type=range]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 24px;
-          width: 24px;
-          background-color: #cbd5e1;
-          border-radius: 50%;
-          border: 2px solid #94a3b8;
-          transition: background-color 0.2s;
-        }
+        input[type=range]::-webkit-slider-thumb,
         input[type=range]::-moz-range-thumb {
-          height: 24px;
-          width: 24px;
-          background-color: #cbd5e1;
-          border-radius: 50%;
-          border: 2px solid #94a3b8;
-          transition: background-color 0.2s;
+            height: 24px; width: 24px; background-color: #cbd5e1;
+            border-radius: 50%; border: 2px solid #94a3b8;
         }
-        /* Custom color input */
         input[type="color"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 48px;
-            height: 48px;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
+            width: 48px; height: 48px; background-color: transparent;
+            border: none; cursor: pointer;
         }
-        input[type="color"]::-webkit-color-swatch {
-            border-radius: 50%;
-            border: 2px solid #64748b;
-        }
+        input[type="color"]::-webkit-color-swatch,
         input[type="color"]::-moz-color-swatch {
-            border-radius: 50%;
-            border: 2px solid #64748b;
+            border-radius: 50%; border: 2px solid #64748b;
         }
+        #loader {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(17, 24, 39, 0.8); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        #loader.visible { opacity: 1; pointer-events: auto; }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-left-color: #67e8f9; border-radius: 50%; width: 50px; height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #messageBox {
+            position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%);
+            background-color: #ef4444; color: white; padding: 0.5rem 1rem;
+            border-radius: 0.5rem; z-index: 110; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none;
+        }
+        #messageBox.visible { opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
-
     <div class="w-full max-w-2xl bg-gray-800 rounded-xl shadow-2xl p-6 md:p-8 space-y-6">
-        <!-- Header -->
         <div class="text-center">
-            <h1 class="text-3xl md:text-4xl font-bold text-cyan-300">Color Tint Photo Tool</h1>
-            <p class="text-gray-400 mt-2">Upload a photo and give it any color tint!</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-cyan-300">AI Color Tint Tool</h1>
+            <p class="text-gray-400 mt-2">Upload a photo and tint the face or full image with any color!</p>
         </div>
 
-        <!-- Canvas for Image Display -->
-        <div class="bg-gray-900 p-2 rounded-lg flex items-center justify-center aspect-square">
+        <div class="bg-gray-900 p-2 rounded-lg flex items-center justify-center aspect-square relative">
+            <div id="loader">
+                <div class="text-center">
+                    <div class="spinner mx-auto"></div>
+                    <p id="loaderText" class="mt-4 text-lg">Loading AI Models...</p>
+                </div>
+            </div>
             <canvas id="imageCanvas" class="max-w-full max-h-full rounded-md"></canvas>
-            <p id="uploadPrompt" class="text-gray-500">Please upload an image to begin.</p>
+            <p id="uploadPrompt" class="text-gray-500 absolute">Please upload an image to begin.</p>
+            <div id="messageBox"></div>
         </div>
 
-        <!-- Controls -->
         <div class="space-y-6">
-            <!-- File Upload and Main Actions -->
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <label for="imageLoader" class="custom-file-upload text-center w-full sm:w-auto">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="inline-block mr-2" viewBox="0 0 16 16">
-                      <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                      <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                    </svg>
-                    Upload Image
-                </label>
-                <input type="file" id="imageLoader" name="imageLoader" accept="image/png, image/jpeg"/>
-                <button id="resetButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Reset</button>
-                <a id="downloadLink" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto text-center transition-colors disabled-link" href="#">Download</a>
+                <label for="imageLoader" class="custom-file-upload text-center w-full sm:w-auto">Upload Image</label>
+                <input type="file" id="imageLoader" accept="image/png, image/jpeg"/>
+                <button id="resetButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto transition-colors disabled:opacity-50" disabled>Reset</button>
+                <a id="downloadLink" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto text-center transition-colors opacity-50 pointer-events-none" href="#">Download</a>
             </div>
 
-            <!-- Color and Intensity Controls -->
             <div id="controlsContainer" class="space-y-4 hidden">
                 <div class="flex items-center gap-4 bg-gray-700/50 p-4 rounded-lg">
                     <div class="flex-shrink-0">
@@ -120,15 +93,18 @@
                         <input type="range" id="intensitySlider" min="0" max="100" value="50" class="w-full">
                     </div>
                 </div>
+                <div class="flex items-center gap-3 text-sm text-gray-300 bg-gray-700/50 p-4 rounded-lg">
+                    <input type="checkbox" id="fullTintToggle" class="h-4 w-4 accent-cyan-400">
+                    <label for="fullTintToggle">Apply tint to full image</label>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- DOM Element References ---
         const imageLoader = document.getElementById('imageLoader');
         const canvas = document.getElementById('imageCanvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const uploadPrompt = document.getElementById('uploadPrompt');
         const colorPicker = document.getElementById('colorPicker');
         const intensitySlider = document.getElementById('intensitySlider');
@@ -136,156 +112,152 @@
         const controlsContainer = document.getElementById('controlsContainer');
         const resetButton = document.getElementById('resetButton');
         const downloadLink = document.getElementById('downloadLink');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loaderText');
+        const messageBox = document.getElementById('messageBox');
 
-        // --- State Variables ---
         let originalImageData = null;
         let currentImage = new Image();
-        
-        // --- Initial State Setup ---
-        downloadLink.classList.add('opacity-50', 'pointer-events-none');
+        let faceDetections = null;
+        let modelsLoaded = false;
 
+        async function loadModels() {
+            if (typeof faceapi === 'undefined') return;
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+            try {
+                loader.classList.add('visible');
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+                modelsLoaded = true;
+                loader.classList.remove('visible');
+            } catch (error) {
+                loaderText.textContent = "Failed to load AI models. Please refresh.";
+            }
+        }
 
-        // --- Event Listeners ---
         imageLoader.addEventListener('change', handleImageUpload, false);
         colorPicker.addEventListener('input', handleControlsChange);
         intensitySlider.addEventListener('input', handleControlsChange);
-        resetButton.addEventListener('click', resetImageAndFilter);
+        document.getElementById('fullTintToggle').addEventListener('change', handleControlsChange);
+        resetButton.addEventListener('click', resetImageFilter);
         downloadLink.addEventListener('click', downloadImage);
 
+        async function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file || !modelsLoaded) return;
 
-        // --- Functions ---
-
-        /**
-         * Handles the file input change event. Loads the selected image.
-         * @param {Event} e - The change event object.
-         */
-        function handleImageUpload(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
                 currentImage = new Image();
-                currentImage.onload = function() {
+                currentImage.onload = async function() {
                     drawImageToCanvas(currentImage);
+                    loader.classList.add('visible');
+                    loaderText.textContent = 'Analyzing image...';
+                    faceDetections = await faceapi.detectAllFaces(currentImage, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true);
+                    loader.classList.remove('visible');
+                    if (faceDetections.length === 0) showMessage("No face detected. Tint will apply to full image.", 3000);
                     originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    applyColorFilter(); // Apply initial filter
-                    
-                    // Update UI
+                    applyColorFilter();
                     uploadPrompt.style.display = 'none';
-                    canvas.style.display = 'block';
                     controlsContainer.classList.remove('hidden');
                     resetButton.disabled = false;
                     downloadLink.classList.remove('opacity-50', 'pointer-events-none');
                 }
                 currentImage.src = event.target.result;
             }
-            if (e.target.files[0]) {
-                reader.readAsDataURL(e.target.files[0]);
-            }
+            reader.readAsDataURL(file);
         }
 
-        /**
-         * Draws the provided image onto the canvas, scaling it to fit.
-         * @param {HTMLImageElement} img - The image to draw.
-         */
         function drawImageToCanvas(img) {
-            const container = canvas.parentElement;
-            const maxWidth = container.clientWidth;
-            const maxHeight = container.clientHeight;
-            
-            let ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-            canvas.width = img.width * ratio;
-            canvas.height = img.height * ratio;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
         }
 
-        /**
-         * Converts a hex color string to an RGB object.
-         * @param {string} hex - The hex color string (e.g., "#ff0000").
-         * @returns {{r: number, g: number, b: number}|null} An object with r, g, b properties or null if invalid.
-         */
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : null;
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
         }
 
-        /**
-         * Applies the selected color filter based on the controls' current values.
-         */
         function applyColorFilter() {
             if (!originalImageData) return;
-
-            const newImageData = new ImageData(
-                new Uint8ClampedArray(originalImageData.data),
-                originalImageData.width,
-                originalImageData.height
-            );
-            
-            const data = newImageData.data;
+            ctx.putImageData(originalImageData, 0, 0);
+            const currentCanvasData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = currentCanvasData.data;
             const intensity = intensitySlider.value / 100;
             const tintColor = hexToRgb(colorPicker.value);
+            const fullImageToggle = document.getElementById('fullTintToggle').checked;
 
-            if (!tintColor) return; // Exit if hex is invalid
+            if (fullImageToggle || !faceDetections || faceDetections.length === 0) {
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = data[i] * (1 - intensity) + tintColor.r * intensity;
+                    data[i + 1] = data[i + 1] * (1 - intensity) + tintColor.g * intensity;
+                    data[i + 2] = data[i + 2] * (1 - intensity) + tintColor.b * intensity;
+                }
+            } else {
+                const resizedDetections = faceapi.resizeResults(faceDetections, { width: canvas.width, height: canvas.height });
+                resizedDetections.forEach(detection => {
+                    const box = detection.detection.box;
+                    const left = Math.max(0, Math.floor(box.left));
+                    const extendUp = box.height * 0.4;
+                    const top = Math.max(0, Math.floor(box.top - extendUp));
+                    const right = Math.min(canvas.width, Math.floor(box.right));
+                    const bottom = Math.min(canvas.height, Math.floor(box.bottom));
 
-            for (let i = 0; i < data.length; i += 4) {
-                // Blend the original pixel with the selected tint color
-                data[i] = data[i] * (1 - intensity) + tintColor.r * intensity;
-                data[i + 1] = data[i + 1] * (1 - intensity) + tintColor.g * intensity;
-                data[i + 2] = data[i + 2] * (1 - intensity) + tintColor.b * intensity;
+                    for (let y = top; y < bottom; y++) {
+                        for (let x = left; x < right; x++) {
+                            const i = (y * canvas.width + x) * 4;
+                            data[i] = data[i] * (1 - intensity) + tintColor.r * intensity;
+                            data[i + 1] = data[i + 1] * (1 - intensity) + tintColor.g * intensity;
+                            data[i + 2] = data[i + 2] * (1 - intensity) + tintColor.b * intensity;
+                        }
+                    }
+                });
             }
 
-            ctx.putImageData(newImageData, 0, 0);
+            ctx.putImageData(currentCanvasData, 0, 0);
         }
-        
-        const debouncedApplyFilter = debounce(applyColorFilter, 25);
-        
-        /**
-         * Debounces a function to prevent it from being called too frequently.
-         */
+
+        const debouncedApplyFilter = debounce(applyColorFilter, 50);
         function debounce(func, delay) {
             let timeout;
             return function(...args) {
-                const context = this;
                 clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(context, args), delay);
+                timeout = setTimeout(() => func.apply(this, args), delay);
             };
         }
 
-        /**
-         * Handles changes from the color picker or intensity slider.
-         */
         function handleControlsChange() {
             if (!originalImageData) return;
             intensityValue.textContent = intensitySlider.value;
             debouncedApplyFilter();
         }
 
-        /**
-         * Resets the image to its original state and resets filter controls.
-         */
-        function resetImageAndFilter() {
+        function resetImageFilter() {
             if (!originalImageData) return;
             ctx.putImageData(originalImageData, 0, 0);
             intensitySlider.value = 50;
             intensityValue.textContent = '50';
-            colorPicker.value = '#fef08a'; // Reset to default yellow
+            colorPicker.value = '#fef08a';
+            document.getElementById('fullTintToggle').checked = false;
         }
 
-        /**
-         * Downloads the current canvas content as a PNG image.
-         */
         function downloadImage(e) {
-            if (!originalImageData) {
-                e.preventDefault();
-                return;
-            };
+            if (!originalImageData) { e.preventDefault(); return; }
             const dataUrl = canvas.toDataURL('image/png');
             downloadLink.href = dataUrl;
-            downloadLink.download = 'color-tint-photo.png';
+            downloadLink.download = 'ai-color-tint-photo.png';
         }
 
+        let messageTimer;
+        function showMessage(text, duration = 3000) {
+            messageBox.textContent = text;
+            messageBox.classList.add('visible');
+            clearTimeout(messageTimer);
+            messageTimer = setTimeout(() => messageBox.classList.remove('visible'), duration);
+        }
+
+        loadModels();
     </script>
 </body>
 </html>
